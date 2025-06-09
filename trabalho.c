@@ -237,12 +237,14 @@ double calculaCaminho(No *origem, No *destino, No vertices[], int pai[], double 
     double dist = 0;
 
     int atual = origem->indice;
+
     while (atual != -1) {
         vis[atual] = true;
         atual = pai[atual];
     }
 
     atual = destino->indice;
+
     while (!vis[atual]) {
         if (vertices[atual].categoria != origem->categoria && vertices[atual].categoria != destino->categoria) return -1;
         dist += chave[atual];
@@ -254,6 +256,7 @@ double calculaCaminho(No *origem, No *destino, No vertices[], int pai[], double 
 
     atual = origem->indice;
     while (atual != ancestralComum) {
+        if (vertices[atual].categoria != origem->categoria && vertices[atual].categoria != destino->categoria) return -1;
         dist += chave[atual];
         atual = pai[atual];
     }
@@ -265,7 +268,7 @@ Tripla* encontraCombinacoesPrim(int qtVertices, No vertices[], int qtCategoria, 
     //calcula prim
     int pai[qtVertices];
     double chave[qtVertices];
-    primMst(qtVertices, adj, 0, pai, chave);
+    primMst(qtVertices, adj, 0, pai, chave);  // usa vertice[0] como raiz
 
     //encontra menores distancias    
     *qtComb = combinatoria(2, qtCategoria);
@@ -351,9 +354,7 @@ double* dijkstra(int s, double **matrizAdj, int totalVertices) {
     return dist;
 }
 
-Tripla* encontraCombinacoesDijkstra(int totalVertices, No vertices[], int qtCategoria, char categorias[], double **matrizDistancias) {
-
-    
+Tripla* encontraCombinacoesDijkstra(int totalVertices, No vertices[], int qtCategoria, char categorias[], double **matrizDistancias) {    
     int qtComb = combinatoria(2, qtCategoria);
     Tripla *combinacoes = malloc(qtComb * sizeof(Tripla));
     if (!combinacoes) {
