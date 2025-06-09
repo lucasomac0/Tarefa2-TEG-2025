@@ -3,9 +3,8 @@
 #include <math.h>
 #include <stdbool.h>
 #include <float.h>
+#include <time.h>
 #include "minheap.h"
-
-#define INF 9223372036854775807LL
 
 typedef struct no{
     float x, y, z;
@@ -312,7 +311,7 @@ double* dijkstra(int s, double **matrizAdj, int totalVertices) {
     if (dist == NULL) return NULL;
     
     // Inicializa todas as distâncias como infinito
-    for (int i = 0; i < totalVertices; i++) dist[i] = INF;
+    for (int i = 0; i < totalVertices; i++) dist[i] = DBL_MAX;
     
     MinHeap *pq = criaHeap(totalVertices * totalVertices); // Tamanho grande pois é um grafo denso
 
@@ -416,20 +415,31 @@ int main(){
 
     //Prim
     printf("\nPrim:\n");
+    clock_t inicio = clock();
     Tripla *respostas1 = encontraCombinacoesPrim(qtVertices, vertices, qtCategoria, categorias, matrizDistancias);
+    clock_t fim = clock();
+
+    printf("Tempo de execução Prim: %.5f segundos\n", (double)(fim-inicio)/CLOCKS_PER_SEC);
+
     if (respostas1){
         for (int i = 0; i < qtCombinacoes; i++){
-            printf("(%c[%i], %c[%i]) - Distancia = %lf\n", respostas1[i].vertice1->categoria, respostas1[i].vertice1->indice, respostas1[i].vertice2->categoria, respostas1[i].vertice2->indice, respostas1[i].distancia);
+            printf("(%c[%i], %c[%i]) - Distância = %lf\n", respostas1[i].vertice1->categoria, respostas1[i].vertice1->indice, respostas1[i].vertice2->categoria, respostas1[i].vertice2->indice, respostas1[i].distancia);
         }
         free(respostas1);
     }
     
+
     //Dijkstra
-    printf("Dijkstra:\n");
+    printf("\nDijkstra:\n");
+    inicio = clock();
     Tripla *respostas2 = encontraCombinacoesDijkstra(qtVertices, vertices, qtCategoria, categorias, matrizDistancias);
+    fim = clock();
+
+    printf("Tempo de execução Dijkstra: %.5f segundos\n", (double)(fim-inicio)/CLOCKS_PER_SEC);
+
     if (respostas2 != NULL) {
         for (int i = 0; i < qtCombinacoes; i++){
-            printf("(%c[%i], %c[%i]) - Distancia = %lf\n", respostas2[i].vertice1->categoria, respostas2[i].vertice1->indice, respostas2[i].vertice2->categoria, respostas2[i].vertice2->indice, respostas2[i].distancia);
+            printf("(%c[%i], %c[%i]) - Distância = %lf\n", respostas2[i].vertice1->categoria, respostas2[i].vertice1->indice, respostas2[i].vertice2->categoria, respostas2[i].vertice2->indice, respostas2[i].distancia);
         }
         free(respostas2);
     }
