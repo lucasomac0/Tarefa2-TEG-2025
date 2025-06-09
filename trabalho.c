@@ -3,6 +3,9 @@
 #include <math.h>
 #include <stdbool.h>
 #include <float.h>
+#include "minheap.h"
+
+#define INF 9223372036854775807LL
 
 typedef struct no{
     float x, y, z;
@@ -11,10 +14,10 @@ typedef struct no{
 }No;
 
 typedef struct {
-    No *a;
-    No *b;
-    double dist;
-}Tupla;
+    No *vertice1;
+    No *vertice2;
+    double distancia;
+} Tripla;
 
 void limpaTela(){
     #ifdef _WIN32
@@ -27,6 +30,15 @@ void limpaTela(){
 void limpaBuffer(){
     int c;
     while ((c = getchar()) != '\n' && c != EOF);
+}
+
+long long fat(int n) {
+    if (n == 0) return 1;
+    else return n * fat(n - 1);
+}
+
+long long combinatoria(int p, int n) {
+    return fat(n) / (fat(p) * fat(n - p));
 }
 
 double calculaDE(struct no A, struct no B){
@@ -181,7 +193,7 @@ int carregaArquivo(struct no **vertices, int *qtCategoria, int *qtAlocada, int *
 }
 
 // ============= PRIM ===============
-int extraiMin(int tam, double chave[], bool vis[]){
+int extraiMinIndex(int tam, double chave[], bool vis[]){
     double min = DBL_MAX;
     int min_index = -1;
 
@@ -206,7 +218,7 @@ void primMst(int tam, double **adj, int raiz, int pai[], double chave[]){
     chave[raiz] = 0;
 
     for (int i = 0; i < tam-1; i++){
-        int u = extraiMin(tam, chave, vis);
+        int u = extraiMinIndex(tam, chave, vis);
 
         if (u == -1) break;
 
@@ -219,15 +231,6 @@ void primMst(int tam, double **adj, int raiz, int pai[], double chave[]){
             }
         }
     }
-}
-
-long long fat(int n) {
-    if (n == 0) return 1;
-    else return n * fat(n - 1);
-}
-
-long long combinatoria(int p, int n) {
-    return fat(n) / (fat(p) * fat(n - p));
 }
 
 double calculaCaminho(int u, int v, int pai[], double chave[]) {
@@ -257,9 +260,15 @@ double calculaCaminho(int u, int v, int pai[], double chave[]) {
     return dist;
 }
 
-Tupla *encontraCombinacoes(int qtVertices, No vertices[], int pai[], double chave[], int qtCategoria, char categorias[26]){
+Tripla* encontraCombinacoesPrim(int qtVertices, No vertices[], int qtCategoria, char categorias[26], double **adj){
+    //calcula prim
+    int pai[qtVertices];
+    double chave[qtVertices];
+    primMst(qtVertices, adj, 0, pai, chave);
+
+    //encontra menores distancias    
     int qtComb = combinatoria(2, qtCategoria);
-    Tupla *combinacoes = malloc(qtComb * sizeof(Tupla));
+    Tripla *combinacoes = malloc(qtComb * sizeof(Tripla));
     int index = 0;
 
     for(int i = 0; i < qtCategoria; i++){
@@ -286,9 +295,101 @@ Tupla *encontraCombinacoes(int qtVertices, No vertices[], int pai[], double chav
             }
 
             if (n1 && n2) {
-                combinacoes[index].a = n1;
-                combinacoes[index].b = n2;
-                combinacoes[index].dist = menor;
+                combinacoes[index].vertice1 = n1;
+                combinacoes[index].vertice2 = n2;
+                combinacoes[index].distancia = menor;
+                index++;
+            }
+        }
+    }
+
+    return combinacoes;
+}
+
+// ============= DIJKSTRA ============
+double* dijkstra(int s, double **matrizAdj, int totalVertices) {
+    double *dist = malloc(sizeof(double) * totalVertices);
+    if (dist == NULL) return NULL;
+    
+    // Inicializa todas as distâncias como infinito
+    for (int i = 0; i < totalVertices; i++) dist[i] = INF;
+    
+    MinHeap *pq = criaHeap(totalVertices * totalVertices); // Tamanho grande pois é um grafo denso
+
+    if (pq == NULL) {
+        free(dist);
+        return NULL;
+    }
+    
+    dist[s] = 0.0;
+    insereHeap(pq, dist[s], s);
+    
+    while (!heapVazio(pq)) {
+        HeapNode atual = extraiMin(pq);
+        double d = atual.dist;
+        int u = atual.vertice;
+        
+        if (d > dist[u]) continue;
+        
+        // Para cada vértice adjacente
+        for (int v = 0; v < totalVertices; v++) {
+            if (v != u && matrizAdj[u][v] > 0) { // Se existe aresta
+                double peso = matrizAdj[u][v];
+                if (dist[v] > d + peso) {
+                    dist[v] = d + peso;
+                    insereHeap(pq, dist[v], v);
+                }
+            }
+        }
+    }
+    
+    liberaHeap(pq);
+    return dist;
+}
+
+Tripla* encontraCombinacoesDijkstra(int totalVertices, No vertices[], int qtCategoria, char categorias[], double **matrizDistancias) {
+
+    
+    int qtComb = combinatoria(2, qtCategoria);
+    Tripla *combinacoes = malloc(qtComb * sizeof(Tripla));
+    if (!combinacoes) {
+        printf("Erro de alocação.\n");
+        return NULL;
+    }
+
+    int index = 0;
+
+    for (int i = 0; i < qtCategoria; i++) {
+        for (int j = i + 1; j < qtCategoria; j++) {
+            char tipoA = categorias[i];
+            char tipoB = categorias[j];
+            double menor = DBL_MAX;
+
+            int origemMenor = -1, destinoMenor = -1;
+
+            for (int origem = 0; origem < totalVertices; origem++) {
+                if (vertices[origem].categoria != tipoA) continue;
+
+                double *distancias = dijkstra(origem, matrizDistancias, totalVertices); 
+
+                for (int destino = 0; destino < totalVertices; destino++) {
+                    if (vertices[destino].categoria != tipoB) continue;
+
+                    double dist = distancias[destino];
+                    if (dist < menor) {
+                        menor = dist;
+                        origemMenor = origem;
+                        destinoMenor = destino;
+                    }
+                }
+
+                free(distancias);
+            }
+
+            if (origemMenor != -1 && destinoMenor != -1) {
+                combinacoes[index].vertice1 = &vertices[origemMenor];
+                combinacoes[index].vertice2 = &vertices[destinoMenor];
+                combinacoes[index].distancia = menor;
                 index++;
             }
         }
@@ -309,19 +410,33 @@ int main(){
 
     carregaArquivo(&vertices, &qtCategoria, &qtAlocada, &qtVertices, nomeArquivo, categorias);
     matrizDistancias = criaMatrizDistancias(vertices, qtVertices);
-    // imprimeMatriz(matrizDistancias, qtVertices, vertices);
-    salvaMatrizArquivo(matrizDistancias, qtVertices, vertices, arquivoSaida);
+    //salvaMatrizArquivo(matrizDistancias, qtVertices, vertices, arquivoSaida);
 
+    int qtCombinacoes = combinatoria(2, qtCategoria);
 
-    //prim
-    int pai[qtVertices];
-    double chave[qtVertices];
-    primMst(qtVertices, matrizDistancias, 0, pai, chave);
-    Tupla *combinacoes = encontraCombinacoes(qtVertices, vertices, pai, chave, qtCategoria, categorias);
-    
-    for (int i = 0; i < combinatoria(2, qtCategoria); i++){
-        printf("(%c[%i], %c[%i]) - DE = %lf\n", combinacoes[i].a->categoria, combinacoes[i].a->indice, combinacoes[i].b->categoria, combinacoes[i].b->indice, combinacoes[i].dist);
+    //Prim
+    printf("\nPrim:\n");
+    Tripla *respostas1 = encontraCombinacoesPrim(qtVertices, vertices, qtCategoria, categorias, matrizDistancias);
+    if (respostas1){
+        for (int i = 0; i < qtCombinacoes; i++){
+            printf("(%c[%i], %c[%i]) - Distancia = %lf\n", respostas1[i].vertice1->categoria, respostas1[i].vertice1->indice, respostas1[i].vertice2->categoria, respostas1[i].vertice2->indice, respostas1[i].distancia);
+        }
+        free(respostas1);
     }
     
+    //Dijkstra
+    printf("Dijkstra:\n");
+    Tripla *respostas2 = encontraCombinacoesDijkstra(qtVertices, vertices, qtCategoria, categorias, matrizDistancias);
+    if (respostas2 != NULL) {
+        for (int i = 0; i < qtCombinacoes; i++){
+            printf("(%c[%i], %c[%i]) - Distancia = %lf\n", respostas2[i].vertice1->categoria, respostas2[i].vertice1->indice, respostas2[i].vertice2->categoria, respostas2[i].vertice2->indice, respostas2[i].distancia);
+        }
+        free(respostas2);
+    }
+
+    // libera
+    for (int i = 0; i < qtVertices; i++) free(matrizDistancias[i]);
+    free(matrizDistancias); 
+    free(vertices); 
     return 0;
 }
