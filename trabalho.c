@@ -232,26 +232,28 @@ void primMst(int tam, double **adj, int raiz, int pai[], double chave[]){
     }
 }
 
-double calculaCaminho(int u, int v, int pai[], double chave[]) {
+double calculaCaminho(No *origem, No *destino, No vertices[], int pai[], double chave[]) {
     bool vis[204] = {false};
     double dist = 0;
 
-    int atual = u;
+    int atual = origem->indice;
     while (atual != -1) {
         vis[atual] = true;
         atual = pai[atual];
     }
 
-    atual = v;
+    atual = destino->indice;
     while (!vis[atual]) {
+        if (vertices[atual].categoria != origem->categoria && vertices[atual].categoria != destino->categoria) return -1;
         dist += chave[atual];
         atual = pai[atual];
+        if (atual == -1) return -1;
     }
 
-    int ancestrorComum = atual;
+    int ancestralComum = atual;
 
-    atual = u;
-    while (atual != ancestrorComum) {
+    atual = origem->indice;
+    while (atual != ancestralComum) {
         dist += chave[atual];
         atual = pai[atual];
     }
@@ -259,17 +261,18 @@ double calculaCaminho(int u, int v, int pai[], double chave[]) {
     return dist;
 }
 
-Tripla* encontraCombinacoesPrim(int qtVertices, No vertices[], int qtCategoria, char categorias[26], double **adj){
+Tripla* encontraCombinacoesPrim(int qtVertices, No vertices[], int qtCategoria, int *qtComb, char categorias[26], double **adj){
     //calcula prim
     int pai[qtVertices];
     double chave[qtVertices];
     primMst(qtVertices, adj, 0, pai, chave);
 
     //encontra menores distancias    
-    int qtComb = combinatoria(2, qtCategoria);
-    Tripla *combinacoes = malloc(qtComb * sizeof(Tripla));
+    *qtComb = combinatoria(2, qtCategoria);
+    Tripla *combinacoes = malloc(*qtComb * sizeof(Tripla));
     int index = 0;
 
+    
     for(int i = 0; i < qtCategoria; i++){
         for (int j = i+1; j < qtCategoria; j++){
             char tipoA = categorias[i];
@@ -284,7 +287,8 @@ Tripla* encontraCombinacoesPrim(int qtVertices, No vertices[], int qtCategoria, 
                 for (int b = 0; b < qtVertices; b++) {
                     if (vertices[b].categoria != tipoB) continue;
 
-                    double dist = calculaCaminho(vertices[a].indice, vertices[b].indice, pai, chave);
+                    double dist = calculaCaminho(&vertices[a], &vertices[b], vertices, pai, chave);
+                    if (dist == -1) continue;  // quando passa por um vertice que não é origem nem destino
                     if (dist < menor) {
                         menor = dist;
                         n1 = &vertices[a];
@@ -302,6 +306,7 @@ Tripla* encontraCombinacoesPrim(int qtVertices, No vertices[], int qtCategoria, 
         }
     }
 
+    (*qtComb) = index;
     return combinacoes;
 }
 
@@ -411,12 +416,12 @@ int main(){
     matrizDistancias = criaMatrizDistancias(vertices, qtVertices);
     //salvaMatrizArquivo(matrizDistancias, qtVertices, vertices, arquivoSaida);
 
-    int qtCombinacoes = combinatoria(2, qtCategoria);
+    int qtCombinacoes;
 
     //Prim
     printf("\nPrim:\n");
     clock_t inicio = clock();
-    Tripla *respostas1 = encontraCombinacoesPrim(qtVertices, vertices, qtCategoria, categorias, matrizDistancias);
+    Tripla *respostas1 = encontraCombinacoesPrim(qtVertices, vertices, qtCategoria, &qtCombinacoes, categorias, matrizDistancias);
     clock_t fim = clock();
 
     printf("Tempo de execução Prim: %.5f segundos\n", (double)(fim-inicio)/CLOCKS_PER_SEC);
@@ -428,6 +433,7 @@ int main(){
         free(respostas1);
     }
     
+    qtCombinacoes = combinatoria(2, qtCategoria);
 
     //Dijkstra
     printf("\nDijkstra:\n");
